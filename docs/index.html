@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Censys Juicy Info Extractor</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4">
+  <div class="max-w-5xl mx-auto">
+    <h1 class="text-3xl font-bold text-center mb-6">Censys Juicy Info Extractor</h1>
+
+    <textarea id="input" rows="10" placeholder="Paste Censys result URLs here..."
+      class="w-full p-3 rounded bg-gray-800 text-white border border-gray-600"></textarea>
+
+    <div class="flex flex-wrap gap-2 mt-4">
+      <button onclick="extractData()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">Extract</button>
+      <button onclick="exportToXLSX()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded">Export to XLSX</button>
+      <input type="file" id="importFile" class="hidden" accept=".xlsx" onchange="importFromXLSX(event)" />
+      <button onclick="document.getElementById('importFile').click()" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded">Import XLSX</button>
+    </div>
+
+    <table id="results" class="table-auto w-full mt-6 text-sm border border-gray-700 hidden">
+      <thead>
+        <tr class="bg-gray-700 text-white">
+          <th class="border border-gray-600 px-2 py-1">IP</th>
+          <th class="border border-gray-600 px-2 py-1">Domain/Subdomain</th>
+        </tr>
+      </thead>
+      <tbody class="text-white"></tbody>
+    </table>
+  </div>
+
+  <script>
+    function extractData() {
+      const input = document.getElementById('input').value;
+      const urls = input.split(/\s+/);
+
+      const data = [];
+      const domainRegex = /https:\/\/platform\.censys\.io\/web\/([^:\/?#]+)(?::(\d+))?/;
+
+      urls.forEach(url => {
+        const match = url.match(domainRegex);
+        if (match) {
+          const host = match[1];
+          const isIP = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+          const ip = isIP ? host : '';
+          const domain = !isIP ? host : '';
+          data.push({ ip, domain });
+        }
+      });
+
+      const tbody = document.querySelector('#results tbody');
+      tbody.innerHTML = '';
+      data.forEach(item => {
+        const row = `<tr>
+          <td class="border border-gray-700 px-2 py-1">${item.ip}</td>
+          <td class="border border-gray-700 px-2 py-1">${item.domain}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+
+      document.getElementById('results').classList.remove('hidden');
+    }
+
+    function exportToXLSX() {
+      const wb = XLSX.utils.book_new();
+      const wsData = [["IP", "Domain/Subdomain"]];
+      const rows = document.querySelectorAll('#results tbody tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        wsData.push([cells[0].innerText, cells[1].innerText]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, "Censys Info");
+      XLSX.writeFile(wb, "censys-info.xlsx");
+    }
+
+    function importFromXLSX(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const wb = XLSX.read(evt.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        const tbody = document.querySelector('#results tbody');
+        tbody.innerHTML = '';
+        data.slice(1).forEach(row => {
+          const rowHTML = `<tr>
+            <td class="border border-gray-700 px-2 py-1">${row[0] || ''}</td>
+            <td class="border border-gray-700 px-2 py-1">${row[1] || ''}</td>
+          </tr>`;
+          tbody.innerHTML += rowHTML;
+        });
+        document.getElementById('results').classList.remove('hidden');
+      };
+      reader.readAsBinaryString(file);
+    }
+  </script>
+<footer>
+    <p class="text-center text-sm text-gray-500 mt-6">
+  🚀 Built by <a href="https://hacktolive.net" class="text-blue-500 hover:underline" target="_blank">HackToLive.net</a> for bug bounty & OSINT hunters.
+</p>
+</footer>
+</body>
+</html>
