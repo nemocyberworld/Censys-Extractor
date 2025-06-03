@@ -37,7 +37,9 @@
       const input = document.getElementById('input').value;
       const urls = input.split(/\s+/);
 
+      const seen = new Set();
       const data = [];
+
       const domainRegex = /https:\/\/platform\.censys\.io\/web\/([^:\/?#]+)(?::(\d+))?/;
 
       urls.forEach(url => {
@@ -47,12 +49,18 @@
           const isIP = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
           const ip = isIP ? host : '';
           const domain = !isIP ? host : '';
-          data.push({ ip, domain });
+          const uniqueKey = `${ip}|${domain}`;
+
+          if (!seen.has(uniqueKey)) {
+            seen.add(uniqueKey);
+            data.push({ ip, domain });
+          }
         }
       });
 
       const tbody = document.querySelector('#results tbody');
       tbody.innerHTML = '';
+
       data.forEach(item => {
         const row = `<tr>
           <td class="border border-gray-700 px-2 py-1">${item.ip}</td>
@@ -61,7 +69,7 @@
         tbody.innerHTML += row;
       });
 
-      document.getElementById('results').classList.remove('hidden');
+      document.getElementById('results').classList.toggle('hidden', data.length === 0);
     }
 
     function exportToXLSX() {
@@ -99,10 +107,11 @@
       reader.readAsBinaryString(file);
     }
   </script>
-<footer>
+
+  <footer>
     <p class="text-center text-sm text-gray-500 mt-6">
-  🚀 Built by <a href="https://hacktolive.net" class="text-blue-500 hover:underline" target="_blank">HackToLive.net</a> for bug bounty & OSINT hunters.
-</p>
-</footer>
+      🚀 Built by <a href="https://hacktolive.net" class="text-blue-500 hover:underline" target="_blank">HackToLive.net</a> for bug bounty & OSINT hunters.
+    </p>
+  </footer>
 </body>
 </html>
